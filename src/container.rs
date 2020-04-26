@@ -12,6 +12,7 @@ pub struct Container {
 }
 
 impl Container {
+  /// Initialize a new container process and return it.
   pub fn new(args: &[String]) -> Self {
     // Stack creation
     const STACK_SIZE: usize = 1024 * 1024;
@@ -19,18 +20,25 @@ impl Container {
     // Callback for child process
     let callback = Box::new(|| child(args));
 
+    // Create the flags for the new container process. These flags
+    // creates new namespaces and assigns them to the child process.
     let flags = CloneFlags::CLONE_NEWNS
       | CloneFlags::CLONE_NEWPID
       | CloneFlags::CLONE_NEWCGROUP
       | CloneFlags::CLONE_NEWUTS
       | CloneFlags::CLONE_NEWIPC
       | CloneFlags::CLONE_NEWNET;
+    // Create the process with the clone syscall. Rust's Command struct
+    // is not enough to create a container process because there is no
+    // way to pass a clone flag.
     let pid = clone(callback, stack, flags, Some(Signal::SIGCHLD as i32))
       .expect("Container process creation failed!");
 
+    // Return the container struct.
     Container { pid }
   }
 
+  /// Wait for the container process until it's done.
   pub fn wait(&self) -> WaitStatus {
     waitpid(self.pid, None).expect("Failed to wait the container process")
   }
@@ -38,9 +46,11 @@ impl Container {
 
 fn child(args: &[String]) -> isize {
   info!("Child process pid: {}", process::id());
+  // Unshare the namespace
   unshare(CloneFlags::CLONE_NEWNS).expect("Failed to unshare");
   assert!(!args.is_empty(), "Expected a command but not found");
 
+  // Initialize the cgroups
   cgroups::init();
 
   // Set the hostname
@@ -57,6 +67,8 @@ fn child(args: &[String]) -> isize {
   mount(Some("proc"), "proc", Some("proc"), MsFlags::empty(), NONE)
     .expect("Failed to mount the /proc");
 
+  // Create a new process with the given command from the arguments and wait
+  // for it until it's done. Returns the status code of the process.
   let status = Command::new(&args[0])
     .args(&args[1..])
     .status()
