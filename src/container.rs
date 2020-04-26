@@ -50,7 +50,7 @@ fn child(args: &clap::ArgMatches) -> isize {
   unshare(CloneFlags::CLONE_NEWNS).expect("Failed to unshare");
 
   // Initialize the cgroups
-  cgroups::init();
+  cgroups::init(args);
 
   // Set the hostname
   sethostname("container").expect("Failed to set the hostname");

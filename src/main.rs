@@ -15,6 +15,7 @@ use std::env;
 fn main() {
     pretty_env_logger::init_timed();
 
+    // Parse command line arguments.
     let matches = App::new("container-rs")
         .version(crate_version!())
         .author(crate_authors!())
@@ -23,9 +24,17 @@ fn main() {
             SubCommand::with_name("run")
                 .about("Run a container")
                 .args(&[
+                    // TODO: Add cgroup arguments here
+                    Arg::with_name("pids.max")
+                        .help("Limit the container processes (set -1 for unlimited)")
+                        .long("pids.max")
+                        .takes_value(true)
+                        .default_value("-1")
+                        .required(false),
                     Arg::with_name("command")
                         .help("A command to run inside the container")
-                        .required(true),
+                        .required(false)
+                        .takes_value(true),
                     Arg::with_name("command_args")
                         .multiple(true)
                         .help("Arguments of the command to run inside the container")
