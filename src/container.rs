@@ -16,7 +16,7 @@ impl Container {
   pub fn new(args: &[String]) -> Self {
     // Stack creation
     const STACK_SIZE: usize = 1024 * 1024;
-    let ref mut stack: [u8; STACK_SIZE] = [0; STACK_SIZE];
+    let stack: &mut [u8; STACK_SIZE] = &mut [0; STACK_SIZE];
     // Callback for child process
     let callback = Box::new(|| child(args));
 
@@ -40,7 +40,7 @@ impl Container {
 fn child(args: &[String]) -> isize {
   info!("Child process pid: {}", process::id());
   unshare(CloneFlags::CLONE_NEWNS).expect("Failed to unshare");
-  assert!(args.len() > 0, "Expected a command but not found");
+  assert!(args.is_empty(), "Expected a command but not found");
 
   cgroup();
 
@@ -85,7 +85,7 @@ fn cgroup() {
   }
 
   let pids_max = cgroups.join("pids.max");
-  fs::write(pids_max, "20".as_bytes()).expect("Failed to write the pids.max");
+  fs::write(pids_max, b"20").expect("Failed to write the pids.max");
 
   let cgroup_procs = cgroups.join("cgroup.procs");
   fs::write(cgroup_procs, process::id().to_string().as_bytes())
