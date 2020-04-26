@@ -39,7 +39,7 @@ impl Container {
 fn child(args: &[String]) -> isize {
   info!("Child process pid: {}", process::id());
   unshare(CloneFlags::CLONE_NEWNS).expect("Failed to unshare");
-  assert!(args.is_empty(), "Expected a command but not found");
+  assert!(!args.is_empty(), "Expected a command but not found");
 
   cgroups::init();
 
