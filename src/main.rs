@@ -1,9 +1,12 @@
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate clap;
 
 mod cgroups;
 mod container;
 
+use clap::{App, Arg, SubCommand};
 use container::Container;
 use std::env;
 
@@ -11,12 +14,33 @@ use std::env;
 /// Example command: `sudo run.sh run bash`.
 fn main() {
     pretty_env_logger::init_timed();
-    let args: Vec<_> = env::args().collect();
-    info!("args: {:?}", args);
-    assert!(args.len() > 1, "Expected a command but not found");
 
-    match args[1].as_str() {
-        "run" => run(&args[2..]),
+    let matches = App::new("container-rs")
+        .version(crate_version!())
+        .author(crate_authors!())
+        .about("A container runtime written in Rust")
+        .subcommand(
+            SubCommand::with_name("run")
+                .about("Run a container")
+                .args(&[
+                    Arg::with_name("command")
+                        .help("A command to run inside the container")
+                        .required(true),
+                    Arg::with_name("command_args")
+                        .multiple(true)
+                        .help("Arguments of the command to run inside the container")
+                        .required(false),
+                ]),
+        )
+        .get_matches();
+
+    info!("args: {:?}", matches);
+
+    match matches.subcommand_name() {
+        Some("run") => run(matches
+            .subcommand_matches("run")
+            .expect("Failed to get subcommand matches")),
+        None => panic!("Expected a command but not found"),
         _ => unimplemented!(),
     }
 
@@ -25,7 +49,7 @@ fn main() {
 
 /// Run the main process with the given argument.
 /// That function creates the child container process.
-fn run(args: &[String]) {
+fn run(args: &clap::ArgMatches) {
     // Run the container process. This should initialize the process inside
     // and return the container process to us.
     let container = Container::new(args);

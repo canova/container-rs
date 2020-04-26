@@ -13,7 +13,7 @@ pub struct Container {
 
 impl Container {
   /// Initialize a new container process and return it.
-  pub fn new(args: &[String]) -> Self {
+  pub fn new(args: &clap::ArgMatches) -> Self {
     // Stack creation
     const STACK_SIZE: usize = 1024 * 1024;
     let stack: &mut [u8; STACK_SIZE] = &mut [0; STACK_SIZE];
@@ -44,11 +44,10 @@ impl Container {
   }
 }
 
-fn child(args: &[String]) -> isize {
+fn child(args: &clap::ArgMatches) -> isize {
   info!("Child process pid: {}", process::id());
   // Unshare the namespace
   unshare(CloneFlags::CLONE_NEWNS).expect("Failed to unshare");
-  assert!(!args.is_empty(), "Expected a command but not found");
 
   // Initialize the cgroups
   cgroups::init();
@@ -69,8 +68,18 @@ fn child(args: &[String]) -> isize {
 
   // Create a new process with the given command from the arguments and wait
   // for it until it's done. Returns the status code of the process.
-  let status = Command::new(&args[0])
-    .args(&args[1..])
+  let mut command = Command::new(
+    &args
+      .value_of("command")
+      .expect("Failed to get the command argument"),
+  );
+
+  if let Some(args) = args.values_of("command_args") {
+    info!("subcommand arguments: {:?}", args);
+    command.args(args);
+  }
+
+  let status = command
     .status()
     .expect("Failed to create child process inside the container");
 
