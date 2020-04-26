@@ -1,4 +1,4 @@
 #! /bin/bash
 
 sudo -u canova /home/canova/.cargo/bin/cargo build &&
-./target/debug/container-rs "$@"
+RUST_LOG=info ./target/debug/container-rs "$@"

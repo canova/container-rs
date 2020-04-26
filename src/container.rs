@@ -38,7 +38,7 @@ impl Container {
 }
 
 fn child(args: &[String]) -> isize {
-  println!("Child process pid: {}", process::id());
+  info!("Child process pid: {}", process::id());
   unshare(CloneFlags::CLONE_NEWNS).expect("Failed to unshare");
   assert!(args.len() > 0, "Expected a command but not found");
 
@@ -66,7 +66,7 @@ fn child(args: &[String]) -> isize {
   // Unount the /proc
   umount("proc").expect("Failed to unmount the /proc");
 
-  println!("Child process status inside the container: {}", status);
+  info!("Child process status inside the container: {}", status);
   0
 }
 
@@ -79,7 +79,7 @@ fn cgroup() {
 
   if cgroups.exists() {
     // Shouldn't happen
-    println!("Unexecped existing cgroup");
+    warn!("Unexecped existing cgroup");
   } else {
     fs::create_dir(&cgroups).expect("Failed to create the cgroup");
   }
