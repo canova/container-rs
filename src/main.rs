@@ -1,12 +1,11 @@
 #[macro_use]
 extern crate log;
 
+mod cgroups;
 mod container;
 
 use container::Container;
 use std::env;
-use std::fs;
-use std::path::PathBuf;
 
 // ./container-rs run ls
 fn main() {
@@ -32,15 +31,5 @@ fn run(args: &[String]) {
         status
     );
 
-    cleanup_cgroup();
-}
-
-fn cleanup_cgroup() {
-    let mut cgroups = PathBuf::from("/sys/fs/cgroup/");
-    assert!(cgroups.exists(), "Failed to locate cgroups");
-    cgroups.push("pids");
-    assert!(cgroups.exists(), "Failed to locate pids");
-    cgroups.push("canova_test");
-    info!("cleaning up cgroups: {:?}", cgroups);
-    fs::remove_dir(cgroups).expect("Failed to remove the cgroup");
+    cgroups::deinit();
 }
