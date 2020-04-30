@@ -7,8 +7,10 @@ This is a work in progress implementation of Linux container runtime in Rust. Cu
 You can run a new container with the following command:
 
 ```bash
-sudo ./run.sh run bash
+./run.sh run bash
 ```
+
+This builds and runs the container runtime but you need to be a sudo user and put your password to be able to run it. Because during the process creation, we need a privileged user.
 
 Currently we don't support different file systems. So you need to create a new file system to your project home directory with the directory name called `new_ubuntu`. That will be changed soon.
 
