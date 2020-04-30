@@ -29,7 +29,6 @@ fn main() {
                         .help("Limit the container processes (set -1 for unlimited)")
                         .long("pids.max")
                         .takes_value(true)
-                        .default_value("-1")
                         .required(false),
                     Arg::with_name("command")
                         .help("A command to run inside the container")

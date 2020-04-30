@@ -19,9 +19,12 @@ pub fn init(args: &clap::ArgMatches) {
   }
 
   if let Some(max_pids) = args.value_of("pids.max") {
-    changed_cgroup_val = true;
-    let pids_max = cgroups.join("pids.max");
-    fs::write(pids_max, max_pids.as_bytes()).expect("Failed to write the pids.max");
+    if max_pids != "-1" {
+      // If it's -1, just ignore the limit.
+      changed_cgroup_val = true;
+      let pids_max = cgroups.join("pids.max");
+      fs::write(pids_max, max_pids.as_bytes()).expect("Failed to write the pids.max");
+    }
   }
 
   if changed_cgroup_val {
