@@ -5,13 +5,14 @@ extern crate clap;
 
 mod cgroups;
 mod container;
+mod filesys;
 
 use clap::{App, Arg, SubCommand};
 use container::Container;
+use filesys::FileSystem;
 use std::env;
 
 /// It requires root privileges. Run the container ideally with `run.sh`.
-/// Example command: `sudo run.sh run bash`.
 fn main() {
     pretty_env_logger::init_timed();
 
@@ -30,9 +31,13 @@ fn main() {
                         .long("pids.max")
                         .takes_value(true)
                         .required(false),
+                    Arg::with_name("file_sytem")
+                        .help("A filesystem to run inside the container")
+                        .required(true)
+                        .takes_value(true),
                     Arg::with_name("command")
                         .help("A command to run inside the container")
-                        .required(false)
+                        .required(true)
                         .takes_value(true),
                     Arg::with_name("command_args")
                         .multiple(true)
@@ -58,9 +63,12 @@ fn main() {
 /// Run the main process with the given argument.
 /// That function creates the child container process.
 fn run(args: &clap::ArgMatches) {
+    // Create a new filesystem and pass this into the container.
+    let file_system = FileSystem::new(args);
+
     // Run the container process. This should initialize the process inside
     // and return the container process to us.
-    let container = Container::new(args);
+    let container = Container::new(args, file_system);
     // Wait for the container process.
     // TODO: support the deteched state.
     let status = container.wait();

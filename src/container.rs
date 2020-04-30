@@ -1,4 +1,5 @@
 use crate::cgroups;
+use crate::filesys::FileSystem;
 use nix::mount::{mount, umount, MsFlags};
 use nix::sched::{clone, unshare, CloneFlags};
 use nix::sys::signal::Signal;
@@ -9,11 +10,12 @@ use std::process::{self, Command};
 
 pub struct Container {
   pub pid: Pid,
+  pub file_system: FileSystem,
 }
 
 impl Container {
   /// Initialize a new container process and return it.
-  pub fn new(args: &clap::ArgMatches) -> Self {
+  pub fn new(args: &clap::ArgMatches, file_system: FileSystem) -> Self {
     // Stack creation
     const STACK_SIZE: usize = 1024 * 1024;
     let stack: &mut [u8; STACK_SIZE] = &mut [0; STACK_SIZE];
@@ -35,7 +37,7 @@ impl Container {
       .expect("Container process creation failed!");
 
     // Return the container struct.
-    Container { pid }
+    Container { pid, file_system }
   }
 
   /// Wait for the container process until it's done.
