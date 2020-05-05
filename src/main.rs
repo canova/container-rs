@@ -5,11 +5,11 @@ extern crate clap;
 
 mod cgroups;
 mod container;
-mod filesys;
+mod fs;
 
 use clap::{App, Arg, SubCommand};
 use container::Container;
-use filesys::FileSystem;
+use fs::FileSystem;
 use std::env;
 
 /// It requires root privileges. Run the container ideally with `run.sh`.
