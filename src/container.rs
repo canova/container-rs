@@ -1,21 +1,42 @@
 use crate::cgroups;
 use crate::fs::FileSystem;
+use hex;
 use nix::mount::{mount, umount, MsFlags};
 use nix::sched::{clone, unshare, CloneFlags};
 use nix::sys::signal::Signal;
 use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::{chroot, sethostname, Pid};
+use sha2::digest::Digest;
+use sha2::Sha256;
 use std::env::{current_dir, set_current_dir};
 use std::process::{self, Command};
+use std::time::SystemTime;
 
 pub struct Container {
+  pub id: String,
   pub pid: Pid,
   pub file_system: FileSystem,
 }
 
 impl Container {
   /// Initialize a new container process and return it.
-  pub fn new(args: &clap::ArgMatches, file_system: FileSystem) -> Self {
+  pub fn new(args: &clap::ArgMatches) -> Self {
+    // Get the container ID as sha256 from the current timestamp.
+    let mut hasher = Sha256::new();
+    let unix_timestamp = SystemTime::now()
+      .duration_since(SystemTime::UNIX_EPOCH)
+      .unwrap()
+      .as_nanos()
+      .to_be_bytes();
+
+    hasher.input(unix_timestamp);
+    let id = hex::encode(hasher.result());
+    info!("Container id: {}", id);
+
+    // Create a new filesystem and pass this into the container.
+    // TODO: Remove the String clone by sending a reference.
+    let file_system = FileSystem::new(args, id.clone());
+
     // Stack creation
     const STACK_SIZE: usize = 1024 * 1024;
     let stack: &mut [u8; STACK_SIZE] = &mut [0; STACK_SIZE];
@@ -37,7 +58,11 @@ impl Container {
       .expect("Container process creation failed!");
 
     // Return the container struct.
-    Container { pid, file_system }
+    Container {
+      id,
+      pid,
+      file_system,
+    }
   }
 
   /// Wait for the container process until it's done.
