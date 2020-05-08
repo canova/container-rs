@@ -1,5 +1,7 @@
 use crate::cgroups;
 use crate::fs::FileSystem;
+use crate::registries::DockerRegistry;
+use crate::Result;
 use hex;
 use nix::mount::{mount, umount, MsFlags};
 use nix::sched::{clone, unshare, CloneFlags};
@@ -11,6 +13,7 @@ use sha2::Sha256;
 use std::env::{current_dir, set_current_dir};
 use std::process::{self, Command};
 use std::time::SystemTime;
+use tokio::task;
 
 pub struct Container {
   pub id: String,
@@ -32,6 +35,10 @@ impl Container {
     hasher.input(unix_timestamp);
     let id = hex::encode(hasher.result());
     info!("Container id: {}", id);
+
+    if let Some(registry) = args.value_of("registry") {
+      let image = get_image(args);
+    }
 
     // Create a new filesystem and pass this into the container.
     // TODO: Remove the String clone by sending a reference.
@@ -115,4 +122,14 @@ fn child(args: &clap::ArgMatches) -> isize {
 
   info!("Child process status inside the container: {}", status);
   0
+}
+
+async fn get_image(args: &clap::ArgMatches) -> Result<String> {
+  let mut docker_registry = DockerRegistry::new();
+
+  if let Some(image_name) = args.value_of("file_sytem") {
+    docker_registry.image_name(image_name.to_string());
+  }
+
+  docker_registry.get().await
 }

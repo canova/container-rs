@@ -6,13 +6,18 @@ extern crate clap;
 mod cgroups;
 mod container;
 mod fs;
+mod registries;
 
 use clap::{App, Arg, SubCommand};
 use container::Container;
 use std::env;
+use tokio;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// It requires root privileges. Run the container ideally with `run.sh`.
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     pretty_env_logger::init_timed();
 
     // Parse command line arguments.
@@ -28,6 +33,12 @@ fn main() {
                     Arg::with_name("pids.max")
                         .help("Limit the container processes (set -1 for unlimited)")
                         .long("pids.max")
+                        .takes_value(true)
+                        .required(false),
+                    Arg::with_name("registry")
+                        .help("Registry we would like to use for images")
+                        .long("registry")
+                        .short("r")
                         .takes_value(true)
                         .required(false),
                     Arg::with_name("file_sytem")
@@ -57,6 +68,7 @@ fn main() {
     }
 
     info!("exited!");
+    Ok(())
 }
 
 /// Run the main process with the given argument.
