@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tar::Archive;
 
-const FILE_SYSTEM_ROOT: &str = "/var/container_rs";
+pub const FILE_SYSTEM_ROOT: &str = "/var/container_rs";
 
 pub struct FileSystem {
   pub container_id: String,

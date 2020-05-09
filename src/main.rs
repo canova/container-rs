@@ -60,9 +60,12 @@ async fn main() -> Result<()> {
     info!("args: {:?}", matches);
 
     match matches.subcommand_name() {
-        Some("run") => run(matches
-            .subcommand_matches("run")
-            .expect("Failed to get subcommand matches")),
+        Some("run") => {
+            run(matches
+                .subcommand_matches("run")
+                .expect("Failed to get subcommand matches"))
+            .await
+        }
         None => panic!("Expected a command but not found"),
         _ => unimplemented!(),
     }
@@ -73,10 +76,10 @@ async fn main() -> Result<()> {
 
 /// Run the main process with the given argument.
 /// That function creates the child container process.
-fn run(args: &clap::ArgMatches) {
+async fn run(args: &clap::ArgMatches<'static>) {
     // Run the container process. This should initialize the process inside
     // and return the container process to us.
-    let container = Container::new(args);
+    let container = Container::new(args).await;
     // Wait for the container process.
     // TODO: support the deteched state.
     let status = container.wait();

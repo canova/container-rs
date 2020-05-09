@@ -13,7 +13,6 @@ use sha2::Sha256;
 use std::env::{current_dir, set_current_dir};
 use std::process::{self, Command};
 use std::time::SystemTime;
-use tokio::task;
 
 pub struct Container {
   pub id: String,
@@ -23,7 +22,7 @@ pub struct Container {
 
 impl Container {
   /// Initialize a new container process and return it.
-  pub fn new(args: &clap::ArgMatches) -> Self {
+  pub async fn new(args: &clap::ArgMatches<'static>) -> Self {
     // Get the container ID as sha256 from the current timestamp.
     let mut hasher = Sha256::new();
     let unix_timestamp = SystemTime::now()
@@ -37,7 +36,7 @@ impl Container {
     info!("Container id: {}", id);
 
     if let Some(registry) = args.value_of("registry") {
-      let image = get_image(args);
+      let image = get_image(args).await.unwrap();
     }
 
     // Create a new filesystem and pass this into the container.
@@ -78,7 +77,7 @@ impl Container {
   }
 }
 
-fn child(args: &clap::ArgMatches) -> isize {
+fn child(args: &clap::ArgMatches<'static>) -> isize {
   info!("Child process pid: {}", process::id());
   // Unshare the namespace
   unshare(CloneFlags::CLONE_NEWNS).expect("Failed to unshare");
@@ -124,7 +123,7 @@ fn child(args: &clap::ArgMatches) -> isize {
   0
 }
 
-async fn get_image(args: &clap::ArgMatches) -> Result<String> {
+async fn get_image(args: &clap::ArgMatches<'static>) -> Result<String> {
   let mut docker_registry = DockerRegistry::new();
 
   if let Some(image_name) = args.value_of("file_sytem") {
