@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
                         .short("r")
                         .takes_value(true)
                         .required(false),
-                    Arg::with_name("file_sytem")
+                    Arg::with_name("image")
                         .help("A filesystem to run inside the container")
                         .required(true)
                         .takes_value(true),

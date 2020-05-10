@@ -15,7 +15,7 @@ pub struct FileSystem {
 impl FileSystem {
   pub fn new(args: &clap::ArgMatches, container_id: String) -> Self {
     ensure_container_folder_exists(&container_id);
-    let fs_path = args.value_of("file_sytem").unwrap();
+    let fs_path = args.value_of("image").unwrap();
     let path = untar(fs_path, &container_id);
 
     FileSystem { container_id, path }
