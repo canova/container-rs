@@ -1,6 +1,5 @@
 use crate::cgroups;
 use crate::fs::FileSystem;
-use hex;
 use nix::mount::{mount, umount, MsFlags};
 use nix::sched::{clone, unshare, CloneFlags};
 use nix::sys::signal::Signal;

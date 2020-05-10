@@ -1,7 +1,8 @@
-use crate::fs::FILE_SYSTEM_ROOT;
+use crate::fs::get_image_path;
+use crate::registries::Registry;
 use crate::Result;
+use async_trait::async_trait;
 use futures::future;
-use reqwest;
 use reqwest::header::ACCEPT;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -10,7 +11,6 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::Builder;
 use tempfile::TempDir;
-use tokio;
 use tokio::fs::OpenOptions;
 
 pub struct DockerRegistry {
@@ -62,13 +62,16 @@ struct DockerManifestConfig {
 #[derive(Debug, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 struct DockerManifestLayer {
-  pub mediaType: String,
+  mediaType: String,
   size: u32,
   digest: String,
 }
 
-impl DockerRegistry {
-  pub fn new() -> Self {
+#[async_trait]
+impl Registry for DockerRegistry {
+  type Output = Self;
+
+  fn new() -> Self {
     DockerRegistry {
       image_name: None,
       registry_url: "https://registry-1.docker.io/v2".to_string(),
@@ -76,12 +79,12 @@ impl DockerRegistry {
     }
   }
 
-  pub fn image_name(&mut self, image_name: String) -> &Self {
+  fn image_name(&mut self, image_name: String) -> &Self {
     self.image_name = Some(image_name);
     self
   }
 
-  pub async fn get(mut self) -> Result<()> {
+  async fn get(mut self) -> Result<()> {
     info!("Getting the image from docker registry");
     if self.image_name.is_none() {
       return Err(Box::new(DockerRegistryError::ImageNameNotGiven));
@@ -101,7 +104,9 @@ impl DockerRegistry {
     self.copy_to_images_dir(layers).await?;
     Ok(())
   }
+}
 
+impl DockerRegistry {
   async fn auth(&mut self) -> Result<()> {
     let auth_url = format!(
       "https://auth.docker.io/token?scope=repository:{image}:pull&service=registry.docker.io",
@@ -198,9 +203,7 @@ impl DockerRegistry {
 
   async fn copy_to_images_dir(&self, layers: Vec<(PathBuf, tokio::fs::File)>) -> Result<()> {
     info!("Starting to unwrap the docker image layers");
-    let mut image_path = PathBuf::from(FILE_SYSTEM_ROOT);
-    image_path.push("images");
-    image_path.push(self.image_name.as_ref().unwrap().replace("/", "_"));
+    let image_path = get_image_path(self.image_name.as_ref().unwrap());
     if !image_path.exists() {
       fs::create_dir_all(&image_path).expect("Failed to create the image dir");
     } else {

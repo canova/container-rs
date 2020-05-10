@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tar::Archive;
 
-pub const FILE_SYSTEM_ROOT: &str = "/var/container_rs";
+const FILE_SYSTEM_ROOT: &str = "/var/container_rs";
 
 pub struct FileSystem {
   pub container_id: String,
@@ -37,9 +37,7 @@ fn untar(image: &str, container_id: &str) -> PathBuf {
   if image.find(".tar").is_some() {
     untar_single(&image, &file_system_path, true);
   } else {
-    let mut image_path = PathBuf::from(FILE_SYSTEM_ROOT);
-    image_path.push("images");
-    image_path.push(&image.replace("/", "_"));
+    let image_path = get_image_path(&image);
 
     info!("{:?}", image_path);
     if image_path.exists() && image_path.is_dir() {
@@ -73,7 +71,7 @@ fn untar_single(image: &str, file_system_path: &PathBuf, gzipped: bool) {
 }
 
 fn ensure_container_folder_exists(container_id: &str) {
-  let mut path = PathBuf::from(FILE_SYSTEM_ROOT);
+  let mut path = get_file_system_root_path();
   if !path.exists() {
     fs::create_dir(&path).expect("Failed to create the root file system dir");
   }
@@ -81,4 +79,20 @@ fn ensure_container_folder_exists(container_id: &str) {
   if !path.exists() {
     fs::create_dir(&path).expect("Failed to create the root/fs file system dir");
   }
+}
+
+pub fn get_file_system_root_path() -> PathBuf {
+  PathBuf::from(FILE_SYSTEM_ROOT)
+}
+
+pub fn get_images_path() -> PathBuf {
+  let mut path = get_file_system_root_path();
+  path.push("images");
+  path
+}
+
+pub fn get_image_path(image: &str) -> PathBuf {
+  let mut path = get_images_path();
+  path.push(&image.replace("/", "_"));
+  path
 }

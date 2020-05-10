@@ -7,14 +7,14 @@ mod cgroups;
 mod container;
 mod fs;
 mod images;
+mod pull;
 mod registries;
 
 use crate::images::images;
-use crate::registries::DockerRegistry;
+use crate::pull::pull;
 use clap::{App, Arg, SubCommand};
 use container::Container;
 use std::env;
-use tokio;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -108,14 +108,11 @@ async fn main() -> Result<()> {
             )
             .await?
         }
-        Some("images") => {
-            images(
-                matches
-                    .subcommand_matches("images")
-                    .expect("Failed to get subcommand matches"),
-            )
-            .await?
-        }
+        Some("images") => images(
+            matches
+                .subcommand_matches("images")
+                .expect("Failed to get subcommand matches"),
+        )?,
         None => panic!("Expected a command but not found"),
         _ => unimplemented!(),
     }
@@ -131,7 +128,7 @@ async fn run(args: &clap::ArgMatches<'static>) {
     // and return the container process to us.
     let container = Container::new(args).await;
     // Wait for the container process.
-    // TODO: support the deteched state.
+    // TODO: support the detached state.
     let status = container.wait();
     info!(
         "child process pid: {} status: {:?}",
@@ -146,21 +143,4 @@ async fn run(args: &clap::ArgMatches<'static>) {
 /// cgroups for now.
 fn cleanup() {
     cgroups::deinit();
-}
-
-///
-async fn pull(args: &clap::ArgMatches<'static>) -> Result<()> {
-    let registry = args.value_of("registry").unwrap();
-
-    match registry {
-        "docker" => {
-            let mut docker_registry = DockerRegistry::new();
-            if let Some(image_name) = args.value_of("image") {
-                docker_registry.image_name(image_name.to_string());
-            }
-
-            docker_registry.get().await
-        }
-        _ => unimplemented!(),
-    }
 }
