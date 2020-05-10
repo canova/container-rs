@@ -1,7 +1,5 @@
 use crate::cgroups;
 use crate::fs::FileSystem;
-use crate::registries::DockerRegistry;
-use crate::Result;
 use hex;
 use nix::mount::{mount, umount, MsFlags};
 use nix::sched::{clone, unshare, CloneFlags};
@@ -34,10 +32,6 @@ impl Container {
     hasher.input(unix_timestamp);
     let id = hex::encode(hasher.result());
     info!("Container id: {}", id);
-
-    if let Some(registry) = args.value_of("registry") {
-      let image = get_image(args).await.unwrap();
-    }
 
     // Create a new filesystem and pass this into the container.
     // TODO: Remove the String clone by sending a reference.
@@ -121,14 +115,4 @@ fn child(args: &clap::ArgMatches<'static>) -> isize {
 
   info!("Child process status inside the container: {}", status);
   0
-}
-
-async fn get_image(args: &clap::ArgMatches<'static>) -> Result<String> {
-  let mut docker_registry = DockerRegistry::new();
-
-  if let Some(image_name) = args.value_of("file_sytem") {
-    docker_registry.image_name(image_name.to_string());
-  }
-
-  docker_registry.get().await
 }

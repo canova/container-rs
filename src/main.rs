@@ -8,6 +8,7 @@ mod container;
 mod fs;
 mod registries;
 
+use crate::registries::DockerRegistry;
 use clap::{App, Arg, SubCommand};
 use container::Container;
 use std::env;
@@ -55,6 +56,27 @@ async fn main() -> Result<()> {
                         .required(false),
                 ]),
         )
+        .subcommand(
+            SubCommand::with_name("pull")
+                .about("Pull image from a registry")
+                .args(&[
+                    Arg::with_name("registry")
+                        .help("Registry we would like to use for images")
+                        .long("registry")
+                        .short("r")
+                        .takes_value(true)
+                        .default_value("docker")
+                        .required(false),
+                    Arg::with_name("image")
+                        .help("Image name that we want to pull")
+                        .required(true)
+                        .takes_value(true),
+                    // Arg::with_name("tag")
+                    //     .help("Tag that we want to pull")
+                    //     .required(true)
+                    //     .takes_value(true),
+                ]),
+        )
         .get_matches();
 
     info!("args: {:?}", matches);
@@ -65,6 +87,14 @@ async fn main() -> Result<()> {
                 .subcommand_matches("run")
                 .expect("Failed to get subcommand matches"))
             .await
+        }
+        Some("pull") => {
+            pull(
+                matches
+                    .subcommand_matches("pull")
+                    .expect("Failed to get subcommand matches"),
+            )
+            .await?
         }
         None => panic!("Expected a command but not found"),
         _ => unimplemented!(),
@@ -96,4 +126,21 @@ async fn run(args: &clap::ArgMatches<'static>) {
 /// cgroups for now.
 fn cleanup() {
     cgroups::deinit();
+}
+
+///
+async fn pull(args: &clap::ArgMatches<'static>) -> Result<()> {
+    let registry = args.value_of("registry").unwrap();
+
+    match registry {
+        "docker" => {
+            let mut docker_registry = DockerRegistry::new();
+            if let Some(image_name) = args.value_of("image") {
+                docker_registry.image_name(image_name.to_string());
+            }
+
+            docker_registry.get().await
+        }
+        _ => unimplemented!(),
+    }
 }

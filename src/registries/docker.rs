@@ -1,22 +1,17 @@
 use crate::fs::FILE_SYSTEM_ROOT;
 use crate::Result;
-use flate2::read::GzDecoder;
 use futures::future;
 use reqwest;
 use reqwest::header::ACCEPT;
-use reqwest::ResponseBuilderExt;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
 use std::fs;
-use std::io;
-use std::io::Seek;
-use std::io::SeekFrom;
 use std::path::PathBuf;
-use tar::Archive;
 use tempfile::Builder;
 use tempfile::TempDir;
 use tokio;
+use tokio::fs::OpenOptions;
 
 pub struct DockerRegistry {
   image_name: Option<String>,
@@ -86,7 +81,7 @@ impl DockerRegistry {
     self
   }
 
-  pub async fn get(mut self) -> Result<String> {
+  pub async fn get(mut self) -> Result<()> {
     info!("Getting the image from docker registry");
     if self.image_name.is_none() {
       return Err(Box::new(DockerRegistryError::ImageNameNotGiven));
@@ -103,8 +98,8 @@ impl DockerRegistry {
       .download_docker_image_layers(&manifest, &tmp_dir)
       .await?;
 
-    // self.unwrap_to_file(layers).await?;
-    Ok("".to_string())
+    self.copy_to_images_dir(layers).await?;
+    Ok(())
   }
 
   async fn auth(&mut self) -> Result<()> {
@@ -115,7 +110,7 @@ impl DockerRegistry {
 
     let res: DockerAuthResult = reqwest::get(&auth_url).await?.json().await?;
     self.auth_token = Some(res.token);
-    info!("Docker auth token: {:?}", self.auth_token);
+    info!("Got the Docker auth token");
     Ok(())
   }
 
@@ -149,18 +144,11 @@ impl DockerRegistry {
     &self,
     manifest: &DockerManifestResult,
     tmp_dir: &TempDir,
-  ) -> Result<Vec<tokio::fs::File>> {
+  ) -> Result<Vec<(PathBuf, tokio::fs::File)>> {
     info!("Getting the image layers from docker registry.");
-    let mut file_system_path = PathBuf::from(FILE_SYSTEM_ROOT);
-    file_system_path.push("images");
-    file_system_path.push(self.image_name.as_ref().unwrap().replace("/", "_"));
-
-    if !file_system_path.exists() {
-      fs::create_dir_all(&file_system_path).expect("Failed to create the image dir");
-    }
 
     let client = reqwest::Client::new();
-    let mut files = future::join_all(manifest.layers.iter().map(|layer| {
+    let files = future::join_all(manifest.layers.iter().map(|layer| {
       let url = format!(
         "{registry}/{image}/blobs/{digest}",
         registry = self.registry_url,
@@ -182,8 +170,7 @@ impl DockerRegistry {
     for file in files {
       let file = file?;
       let mut dest = {
-        info!("path segments: {:?}", file.url().path_segments());
-        let fname = file
+        let file_path = file
           .url()
           .path_segments()
           .and_then(|mut segments| {
@@ -192,38 +179,44 @@ impl DockerRegistry {
           })
           .and_then(|name| if name.is_empty() { None } else { Some(name) })
           .unwrap_or("tmp.bin");
-        info!("file to download: '{}'", format!("{}.tar.gz", fname));
-        let fname = file_system_path.join(format!("{}.tar.gz", fname));
-        info!("will be located under: '{:?}'", fname);
-        tokio::fs::File::create(fname).await?
+        let file_path = tmp_dir.path().join(format!("{}.tar.gz", file_path));
+        let file = OpenOptions::new()
+          .read(true)
+          .write(true)
+          .create(true)
+          .open(&file_path)
+          .await?;
+        (file_path, file)
       };
 
-      tokio::io::copy(&mut &*file.bytes().await?, &mut dest).await?;
+      tokio::io::copy(&mut &*file.bytes().await?, &mut dest.1).await?;
       file_objects.push(dest);
     }
 
     Ok(file_objects)
   }
 
-  // async fn unwrap_to_file(&self, layers: Vec<tokio::fs::File>) -> Result<()> {
-  //   info!("Starting to unwrap the docker image layers");
-  //   let mut i: u32 = 1;
-  //   for layer in layers {
-  //     let mut file_system_path = PathBuf::from(FILE_SYSTEM_ROOT);
-  //     file_system_path.push("images");
-  //     file_system_path.push(self.image_name.as_ref().unwrap().replace("/", "_"));
-  //     file_system_path.push("unzipped");
-  //     if !file_system_path.exists() {
-  //       fs::create_dir_all(&file_system_path).expect("Failed to create the image dir");
-  //     }
-  //     let mut std_file = layer.into_std().await;
-  //     i += 1;
-  //     info!("std_file: {:?}", std_file);
-  //     let mut archive = Archive::new(GzDecoder::new(&std_file));
-  //     info!("Unpacking tar {:?} to {:?}", std_file, file_system_path);
-  //     archive.unpack(&file_system_path).unwrap();
-  //   }
+  async fn copy_to_images_dir(&self, layers: Vec<(PathBuf, tokio::fs::File)>) -> Result<()> {
+    info!("Starting to unwrap the docker image layers");
+    let mut image_path = PathBuf::from(FILE_SYSTEM_ROOT);
+    image_path.push("images");
+    image_path.push(self.image_name.as_ref().unwrap().replace("/", "_"));
+    if !image_path.exists() {
+      fs::create_dir_all(&image_path).expect("Failed to create the image dir");
+    } else {
+      warn!("This image already exists");
+    }
 
-  //   Ok(())
-  // }
+    // Copying the layers to their place.r!
+    for mut layer in layers {
+      let file_name = layer.0.file_name().unwrap();
+      let dest_path = image_path.join(file_name);
+      let mut dest = tokio::fs::File::create(dest_path).await?;
+
+      tokio::io::copy(&mut layer.1, &mut dest).await?;
+    }
+
+    info!("Succesfully copied all the image layers");
+    Ok(())
+  }
 }
