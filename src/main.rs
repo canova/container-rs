@@ -6,8 +6,10 @@ extern crate clap;
 mod cgroups;
 mod container;
 mod fs;
+mod images;
 mod registries;
 
+use crate::images::images;
 use crate::registries::DockerRegistry;
 use clap::{App, Arg, SubCommand};
 use container::Container;
@@ -77,6 +79,16 @@ async fn main() -> Result<()> {
                     //     .takes_value(true),
                 ]),
         )
+        .subcommand(
+            SubCommand::with_name("images")
+                .about("Get the list of the pulled images")
+                .args(&[Arg::with_name("remove")
+                    .help("Registry we would like to use for images")
+                    .long("remove")
+                    .short("r")
+                    .takes_value(true)
+                    .required(false)]),
+        )
         .get_matches();
 
     info!("args: {:?}", matches);
@@ -92,6 +104,14 @@ async fn main() -> Result<()> {
             pull(
                 matches
                     .subcommand_matches("pull")
+                    .expect("Failed to get subcommand matches"),
+            )
+            .await?
+        }
+        Some("images") => {
+            images(
+                matches
+                    .subcommand_matches("images")
                     .expect("Failed to get subcommand matches"),
             )
             .await?
