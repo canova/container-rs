@@ -19,7 +19,7 @@ pub struct Container {
 
 impl Container {
   /// Initialize a new container process and return it.
-  pub async fn new(args: &clap::ArgMatches<'static>) -> Self {
+  pub fn new(args: &clap::ArgMatches<'static>) -> Self {
     // Get the container ID as sha256 from the current timestamp.
     let mut hasher = Sha256::new();
     let unix_timestamp = SystemTime::now()
