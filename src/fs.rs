@@ -35,7 +35,7 @@ fn untar(image: &str, container_id: &str) -> PathBuf {
   file_system_path.push(container_id);
 
   if image.find(".tar").is_some() {
-    untar_single(&image, &file_system_path, true);
+    untar_single(&image, &file_system_path);
   } else {
     let image_path = get_image_path(&image);
 
@@ -43,7 +43,7 @@ fn untar(image: &str, container_id: &str) -> PathBuf {
     if image_path.exists() && image_path.is_dir() {
       for entry in fs::read_dir(image_path).unwrap() {
         let entry = entry.unwrap();
-        untar_single(entry.path().to_str().unwrap(), &file_system_path, false);
+        untar_single(entry.path().to_str().unwrap(), &file_system_path);
       }
     } else {
       error!("Image could not found!");
@@ -54,19 +54,14 @@ fn untar(image: &str, container_id: &str) -> PathBuf {
 }
 
 /// Untar single tarball.
-fn untar_single(image: &str, file_system_path: &PathBuf, gzipped: bool) {
+fn untar_single(image: &str, file_system_path: &PathBuf) {
   let now = Instant::now();
   let fs_tar_path = PathBuf::from(image).canonicalize().unwrap();
   let file = File::open(fs_tar_path).unwrap();
 
   info!("Unpacking tar {:?} to {:?}", file, file_system_path);
-  if gzipped {
-    let mut archive = Archive::new(GzDecoder::new(&file));
-    archive.unpack(&file_system_path).unwrap();
-  } else {
-    let mut archive = Archive::new(&file);
-    archive.unpack(&file_system_path).unwrap();
-  }
+  let mut archive = Archive::new(GzDecoder::new(&file));
+  archive.unpack(&file_system_path).unwrap();
   info!("Unpacked the file system tar ball in {:.2?}", now.elapsed());
 }
 

@@ -95,7 +95,7 @@ impl Registry for DockerRegistry {
       self.auth().await?;
     }
 
-    let tmp_dir = Builder::new().prefix("example").tempdir()?;
+    let tmp_dir = Builder::new().prefix("container_rs").tempdir()?;
     let manifest = self.get_manifest().await?;
     let layers = self
       .download_docker_image_layers(&manifest, &tmp_dir)
@@ -127,6 +127,9 @@ impl DockerRegistry {
       image = self.image_name.as_ref().unwrap()
     );
 
+    // TODO: Create only one Client instance and use it inside the
+    // auth/get_manifest/download_docker_image_layers functions instead of
+    // creating one for each.
     let client = reqwest::Client::new();
 
     let res = client
@@ -149,7 +152,7 @@ impl DockerRegistry {
     &self,
     manifest: &DockerManifestResult,
     tmp_dir: &TempDir,
-  ) -> Result<Vec<(PathBuf, tokio::fs::File)>> {
+  ) -> Result<Vec<PathBuf>> {
     info!("Getting the image layers from docker registry.");
 
     let client = reqwest::Client::new();
@@ -171,6 +174,7 @@ impl DockerRegistry {
     }))
     .await;
 
+    // TODO: We can also make this loop parallel with future::join_all.
     let mut file_objects = vec![];
     for file in files {
       let file = file?;
@@ -198,10 +202,10 @@ impl DockerRegistry {
       file_objects.push(dest);
     }
 
-    Ok(file_objects)
+    Ok(file_objects.into_iter().map(|x| x.0).collect())
   }
 
-  async fn copy_to_images_dir(&self, layers: Vec<(PathBuf, tokio::fs::File)>) -> Result<()> {
+  async fn copy_to_images_dir(&self, layers: Vec<PathBuf>) -> Result<()> {
     info!("Starting to unwrap the docker image layers");
     let image_path = get_image_path(self.image_name.as_ref().unwrap());
     if !image_path.exists() {
@@ -211,12 +215,10 @@ impl DockerRegistry {
     }
 
     // Copying the layers to their place.r!
-    for mut layer in layers {
-      let file_name = layer.0.file_name().unwrap();
+    for layer in layers {
+      let file_name = layer.file_name().unwrap();
       let dest_path = image_path.join(file_name);
-      let mut dest = tokio::fs::File::create(dest_path).await?;
-
-      tokio::io::copy(&mut layer.1, &mut dest).await?;
+      tokio::fs::copy(&layer, &dest_path).await?;
     }
 
     info!("Succesfully copied all the image layers");
