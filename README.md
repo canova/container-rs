@@ -4,7 +4,14 @@ This is a work in progress implementation of Linux container runtime in Rust. Cu
 
 ## Run
 
-You can run a new container with the following command:
+You can download a Docker image and run a new container with the following commands:
+
+```bash
+./run.sh pull library/ubuntu # Get the ubuntu image from the docker registry.
+./run.sh run library/ubuntu bash # Create a new container and run bash with the ubuntu image.
+```
+
+or you can also specify your own file system tarball like this:
 
 ```bash
 ./run.sh run resources/ubuntu-fs.tar.gz bash
@@ -12,12 +19,14 @@ You can run a new container with the following command:
 
 This builds and runs the container runtime but you need to be a sudo user and put your password to be able to run it. Because during the process creation, we need a privileged user.
 
-We support different file systems. To test the project, you can use the ubuntu file system inside the resources directory. You can also specify your own file system like this:
+You can list the downloaded images with:
 
 ```bash
-./run.sh run <path-to-your-fs> bash
+./run.sh images
 ```
 
-You can also download a simple ubuntu file system from the docker registry or you can just download [this tar.gz][tarfile] file directly. This is the file system the ubuntu docker image is based on. Docker registry support will come soon.
+and remove an image with:
 
-[tarfile]: https://github.com/tianon/docker-brew-ubuntu-core/blob/fbcb3103ee22258b052bd7978989a302230ac5e5/bionic/ubuntu-bionic-core-cloudimg-amd64-root.tar.gz
+```bash
+./run.sh images -r library/ubuntu
+```
